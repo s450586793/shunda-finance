@@ -198,13 +198,17 @@ required_test_commands = [
     "npx playwright install --with-deps chromium",
     "npm run test:e2e",
     "SHUNDA_REQUIRE_DOCKER_COMPOSE=1 bash scripts/system-update-compose.test.sh",
-    "bash scripts/release-images-contract.test.sh",
+    'PATH="$PWD/.venv/bin:$PATH" bash scripts/release-images-contract.test.sh',
 ]
 for command in required_test_commands:
     if command not in test_commands:
         raise SystemExit(f"missing test command: {command}")
 
-for command in ('pip install ".[dev]"', "pytest --cov --cov-report=term-missing"):
+for command in (
+    'pip install ".[dev]"',
+    "pytest --cov --cov-report=term-missing",
+    "bash scripts/release-images-contract.test.sh",
+):
     if command in test_commands:
         raise SystemExit(f"test command must use the project virtualenv: {command}")
 

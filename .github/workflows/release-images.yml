@@ -36,7 +36,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - run: SHUNDA_REQUIRE_DOCKER_COMPOSE=1 bash scripts/system-update-compose.test.sh
-      - run: bash scripts/release-images-contract.test.sh
+      - run: PATH="$PWD/.venv/bin:$PATH" bash scripts/release-images-contract.test.sh
 
   preflight:
     if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && github.event.deleted != true && startsWith(github.ref, 'refs/tags/v') }}
