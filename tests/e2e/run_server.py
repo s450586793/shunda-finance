@@ -3,9 +3,11 @@ import shutil
 import sys
 from pathlib import Path
 
+ROOT = Path(__file__).parents[2].resolve()
+sys.path.insert(0, str(ROOT))
+
 from config.e2e_paths import validate_e2e_paths
 
-ROOT = Path(__file__).parents[2].resolve()
 E2E_PATHS = validate_e2e_paths(ROOT)
 RESULTS_ROOT = E2E_PATHS.results_root
 DATABASE_PATH = E2E_PATHS.database
