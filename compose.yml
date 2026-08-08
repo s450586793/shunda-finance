@@ -1,0 +1,81 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - ${SHUNDA_DATA_DIR:?required}/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - internal
+  web:
+    image: ghcr.io/s450586793/shunda-finance-web:${SHUNDA_WEB_IMAGE_TAG:?required}
+    pull_policy: never
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120
+    restart: unless-stopped
+    environment:
+      DJANGO_SETTINGS_MODULE: "${DJANGO_SETTINGS_MODULE:?required}"
+      DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?required}"
+      DJANGO_DEBUG: "${DJANGO_DEBUG:?required}"
+      DJANGO_ALLOWED_HOSTS: "${DJANGO_ALLOWED_HOSTS:?required}"
+      CSRF_TRUSTED_ORIGINS: "${CSRF_TRUSTED_ORIGINS:?required}"
+      DJANGO_COOKIE_SECURE: "${DJANGO_COOKIE_SECURE:?required}"
+      COMPANY_TAX_ID: "${COMPANY_TAX_ID:?required}"
+      SHUNDA_UPDATER_URL: http://updater:8090
+      SHUNDA_UPDATER_TOKEN: "${SHUNDA_UPDATER_TOKEN:?required}"
+      IMPORT_MAX_UPLOAD_BYTES: "${IMPORT_MAX_UPLOAD_BYTES:?required}"
+      IMPORT_MAX_ROWS: "${IMPORT_MAX_ROWS:?required}"
+      DATABASE_URL: "${DATABASE_URL:?required}"
+    volumes:
+      - ${SHUNDA_DATA_DIR:?required}/uploads:/data/uploads
+      - ${SHUNDA_DATA_DIR:?required}/exports:/data/exports
+      - ${SHUNDA_DATA_DIR:?required}/backups:/data/backups
+    ports:
+      - 127.0.0.1:8000:8000
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8000/health/ >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks:
+      - internal
+  updater:
+    image: ghcr.io/s450586793/shunda-finance-updater:${SHUNDA_UPDATER_IMAGE_TAG:?required}
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      SHUNDA_UPDATER_TOKEN: ${SHUNDA_UPDATER_TOKEN:?required}
+      SHUNDA_COMPOSE_PROJECT: shunda-finance
+    expose:
+      - "8090"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${SHUNDA_APP_DIR:?required}:/config
+      - ${SHUNDA_DATA_DIR:?required}/updater-state:/state
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8090/health >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - internal
+
+networks:
+  internal:
+    internal: true

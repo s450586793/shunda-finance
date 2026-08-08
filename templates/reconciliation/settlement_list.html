@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}结算批次 | 顺达财务台账{% endblock %}
+{% block content %}
+<header class="page-header page-header-actions">
+  <div><p class="eyebrow">期间结算</p><h1>结算批次</h1></div>
+  <a class="button button-secondary" href="{% url 'reconciliation:workbench' %}"><i data-lucide="split" aria-hidden="true"></i>人工核销</a>
+</header>
+
+{% if form.errors %}
+<div class="message-stack" aria-live="polite">
+  {% for error in form.non_field_errors %}<div class="message message-error">{{ error }}</div>{% endfor %}
+  {% for field in form %}{% for error in field.errors %}<div class="message message-error">{{ error }}</div>{% endfor %}{% endfor %}
+</div>
+{% endif %}
+
+<section class="panel" aria-labelledby="draft-title">
+  <div class="section-heading"><div><h2 id="draft-title">新建草稿</h2><span class="section-index">01</span></div></div>
+  <form method="post" action="{% url 'reconciliation:settlement-create' %}" class="settlement-form">
+    {% csrf_token %}
+    <label><span>{{ form.counterparty.label }}</span>{{ form.counterparty }}</label>
+    <label><span>{{ form.direction.label }}</span>{{ form.direction }}</label>
+    <label><span>{{ form.period_start.label }}</span>{{ form.period_start }}</label>
+    <label><span>{{ form.period_end.label }}</span>{{ form.period_end }}</label>
+    <button class="button button-primary" type="submit"><i data-lucide="plus" aria-hidden="true"></i>创建草稿</button>
+  </form>
+</section>
+
+<section class="panel table-panel" aria-labelledby="batch-title">
+  <div class="section-heading"><div><h2 id="batch-title">批次记录</h2><span class="section-index">02</span></div></div>
+  <div class="table-scroll">
+    <table class="data-table batch-table">
+      <colgroup><col><col class="col-direction"><col class="col-date"><col class="col-date"><col class="col-status"><col class="col-action"></colgroup>
+      <thead><tr><th>往来单位</th><th>方向</th><th>开始日期</th><th>结束日期</th><th>状态</th><th><span class="sr-only">查看</span></th></tr></thead>
+      <tbody>
+      {% for batch in batches %}
+        <tr><td>{{ batch.counterparty.name }}</td><td>{{ batch.get_direction_display }}</td><td>{{ batch.period_start|date:"Y-m-d" }}</td><td>{{ batch.period_end|date:"Y-m-d" }}</td><td><span class="status status-{{ batch.status }}">{{ batch.get_status_display }}</span></td><td><a class="icon-button" href="{% url 'reconciliation:settlement-detail' batch.pk %}" aria-label="查看结算批次" title="查看"><i data-lucide="arrow-right" aria-hidden="true"></i></a></td></tr>
+      {% empty %}<tr><td class="empty-state" colspan="6">暂无结算批次</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}撤销核销 | 顺达财务台账{% endblock %}
+{% block content %}
+<header class="page-header page-header-actions">
+  <div><p class="eyebrow">核销撤销</p><h1>撤销核销</h1><p class="page-meta">{{ original.get_direction_display }} · {{ original.created_at|date:"Y-m-d H:i" }}</p></div>
+  <a class="button button-secondary" href="{% url 'reconciliation:detail' original.pk %}"><i data-lucide="undo-2" aria-hidden="true"></i>返回</a>
+</header>
+
+{% if form.errors %}
+<div class="message-stack" aria-live="polite">
+  {% for error in form.non_field_errors %}<div class="message message-error">{{ error }}</div>{% endfor %}
+  {% for field in form %}{% for error in field.errors %}<div class="message message-error">{{ error }}</div>{% endfor %}{% endfor %}
+</div>
+{% endif %}
+
+<section class="panel table-panel" aria-labelledby="original-allocation-title">
+  <div class="section-heading"><div><h2 id="original-allocation-title">原核销明细</h2><span class="section-index">01</span></div></div>
+  <div class="table-scroll"><table class="data-table batch-table"><thead><tr><th>发票号码</th><th>资金日期</th><th class="numeric">核销金额</th></tr></thead><tbody>
+  {% for item in allocation_rows %}<tr><td class="mono">{{ item.record.invoice.invoice_number }}</td><td>{{ item.record.transaction.occurred_at|date:"Y-m-d" }}</td><td class="numeric">{{ item.amount_text }}</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+
+<section class="panel reversal-panel">
+  <form method="post" class="form-stack">
+    {% csrf_token %}
+    <label for="{{ form.reason.id_for_label }}">{{ form.reason.label }}</label>
+    {{ form.reason }}
+    <button class="button button-primary" type="submit"><i data-lucide="undo-2" aria-hidden="true"></i>确认撤销</button>
+  </form>
+</section>
+{% endblock %}

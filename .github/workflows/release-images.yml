@@ -1,0 +1,263 @@
+name: Release Images
+
+concurrency:
+  group: release-images-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: false
+
+'on':
+  pull_request:
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: pip install ".[dev]"
+      - run: pytest --cov --cov-report=term-missing
+      - run: npm ci
+      - run: npm run test:js
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - run: SHUNDA_REQUIRE_DOCKER_COMPOSE=1 bash scripts/system-update-compose.test.sh
+      - run: bash scripts/release-images-contract.test.sh
+
+  preflight:
+    if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && github.event.deleted != true && startsWith(github.ref, 'refs/tags/v') }}
+    needs:
+      - test
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.release.outputs.release_tag }}
+      release_created: ${{ steps.release.outputs.release_created }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - id: release
+        name: Resolve release metadata
+        run: |
+          release_tag="${GITHUB_REF_NAME}"
+          if ! printf '%s' "${release_tag}" | grep -Eq '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'; then
+            echo "release tags must use canonical vX.Y.Z format" >&2
+            exit 1
+          fi
+          release_created="$(git show -s --format=%cI "${GITHUB_SHA}")"
+          if [ -z "${release_created}" ]; then
+            echo "release commit timestamp is required" >&2
+            exit 1
+          fi
+          if ! release_created="$(date --utc --date="${release_created}" '+%Y-%m-%dT%H:%M:%SZ')"; then
+            echo "release commit timestamp must be convertible to UTC" >&2
+            exit 1
+          fi
+          {
+            echo "release_tag=${release_tag}"
+            echo "release_created=${release_created}"
+          } >>"${GITHUB_OUTPUT}"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify immutable release tags are absent
+        run: |
+          check_release_tag() {
+            image="$1"
+            label="$2"
+            image_lc="$(printf '%s' "${image}" | tr '[:upper:]' '[:lower:]')"
+            inspect_log="$(mktemp)"
+            if docker buildx imagetools inspect "${image}" >"${inspect_log}" 2>&1; then
+              rm -f "${inspect_log}"
+              echo "immutable tag already exists for ${label}" >&2
+              exit 1
+            fi
+            inspect_output="$(tr '[:upper:]' '[:lower:]' <"${inspect_log}")"
+            rm -f "${inspect_log}"
+            case "${inspect_output}" in
+              "manifest unknown: manifest unknown"|"name unknown: name unknown"|"${image_lc}: not found")
+                return 0
+                ;;
+            esac
+            echo "unable to verify immutable tag availability for ${label}" >&2
+            exit 1
+          }
+
+          check_release_tag "ghcr.io/s450586793/shunda-finance-web:${{ steps.release.outputs.release_tag }}" "web"
+          check_release_tag "ghcr.io/s450586793/shunda-finance-updater:${{ steps.release.outputs.release_tag }}" "updater"
+
+  publish:
+    if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && github.event.deleted != true && startsWith(github.ref, 'refs/tags/v') }}
+    needs:
+      - preflight
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - web
+          - updater
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/s450586793/shunda-finance-${{ matrix.target }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=${{ needs.preflight.outputs.release_tag }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: ${{ matrix.target }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: |
+            org.opencontainers.image.version=${{ needs.preflight.outputs.release_tag }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ needs.preflight.outputs.release_created }}
+          build-args: |
+            SHUNDA_RELEASE_VERSION=${{ needs.preflight.outputs.release_tag }}
+            SHUNDA_RELEASE_REVISION=${{ github.sha }}
+            SHUNDA_RELEASE_CREATED=${{ needs.preflight.outputs.release_created }}
+
+  promote-stable:
+    if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && github.event.deleted != true && startsWith(github.ref, 'refs/tags/v') }}
+    needs:
+      - publish
+    runs-on: ubuntu-latest
+    concurrency:
+      group: release-images-stable-${{ github.repository }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Promote web stable tag
+        run: |
+          release_tag="${GITHUB_REF_NAME}"
+          stable_image="ghcr.io/s450586793/shunda-finance-web:stable"
+          candidate_image="ghcr.io/s450586793/shunda-finance-web:${release_tag}"
+
+          if ! printf '%s' "${release_tag}" | grep -Eq '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'; then
+            echo "candidate release version is invalid" >&2
+            exit 1
+          fi
+
+          stable_version() {
+            inspect_log="$(mktemp)"
+            if version="$(docker buildx imagetools inspect "${stable_image}" --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' 2>"${inspect_log}")"; then
+              rm -f "${inspect_log}"
+              line_count="$(printf '%s\n' "${version}" | wc -l | tr -d ' ')"
+              if [ "${line_count}" != "1" ] || ! printf '%s\n' "${version}" | grep -Eq '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'; then
+                echo "current stable OCI version is invalid" >&2
+                return 2
+              fi
+              STABLE_VERSION="${version}"
+              return 0
+            fi
+            inspect_output="$(tr '[:upper:]' '[:lower:]' <"${inspect_log}")"
+            rm -f "${inspect_log}"
+            case "${inspect_output}" in
+              "manifest unknown: manifest unknown"|"name unknown: name unknown"|"${stable_image}: not found")
+                return 1
+                ;;
+            esac
+            echo "unable to verify current stable version" >&2
+            return 2
+          }
+
+          numeric_component_is_greater() {
+            if [ "${#1}" -ne "${#2}" ]; then
+              [ "${#1}" -gt "${#2}" ]
+              return
+            fi
+            if [ "$1" = "$2" ]; then
+              return 1
+            fi
+            [ "$(printf '%s\n%s\n' "$1" "$2" | LC_ALL=C sort | sed -n '1p')" = "$2" ]
+          }
+
+          candidate_is_newer() {
+            candidate="${1#v}"
+            current="${2#v}"
+            old_ifs="${IFS}"
+            IFS=.
+            set -- ${candidate}
+            candidate_major="$1"
+            candidate_minor="$2"
+            candidate_patch="$3"
+            set -- ${current}
+            current_major="$1"
+            current_minor="$2"
+            current_patch="$3"
+            IFS="${old_ifs}"
+            numeric_component_is_greater "${candidate_major}" "${current_major}" || {
+              [ "${candidate_major}" = "${current_major}" ] && {
+                numeric_component_is_greater "${candidate_minor}" "${current_minor}" || {
+                  [ "${candidate_minor}" = "${current_minor}" ] && numeric_component_is_greater "${candidate_patch}" "${current_patch}"
+                }
+              }
+            }
+          }
+
+          if stable_version; then
+            if ! candidate_is_newer "${release_tag}" "${STABLE_VERSION}"; then
+              echo "candidate release is not newer than current stable" >&2
+              exit 1
+            fi
+          else
+            status="$?"
+            if [ "${status}" -ne 1 ]; then
+              exit 1
+            fi
+          fi
+
+          if stable_version; then
+            if ! candidate_is_newer "${release_tag}" "${STABLE_VERSION}"; then
+              echo "candidate release is not newer than current stable" >&2
+              exit 1
+            fi
+          else
+            status="$?"
+            if [ "${status}" -ne 1 ]; then
+              exit 1
+            fi
+          fi
+
+          docker buildx imagetools create \
+            --tag "${stable_image}" \
+            "${candidate_image}"

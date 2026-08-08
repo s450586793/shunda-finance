@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}供应商往来 | 顺达财务台账{% endblock %}
+{% block content %}
+<header class="page-header page-header-actions">
+  <div><p class="eyebrow">往来汇总</p><h1>供应商往来</h1><p class="page-meta">截至 {{ as_of|date:"Y-m-d" }}</p></div>
+  <nav class="view-tabs" aria-label="应收应付视图">
+    <a href="{% url 'reporting:receivables' %}">应收</a>
+    <a href="{% url 'reporting:payables' %}">应付</a>
+    <a href="{% url 'reporting:suppliers' %}" aria-current="page">供应商</a>
+    <a href="{% url 'reporting:exceptions' %}">异常</a>
+  </nav>
+</header>
+<form class="toolbar reporting-toolbar supplier-toolbar" method="get">
+  <label><span>截止日期</span><input type="date" name="as_of" value="{{ as_of|date:'Y-m-d' }}"></label>
+  <label class="search-field"><span>供应商</span><input type="search" name="q" value="{{ search }}" maxlength="100" placeholder="名称关键词"></label>
+  <button class="button button-secondary" type="submit"><i data-lucide="filter" aria-hidden="true"></i>查询</button>
+</form>
+<section class="panel reporting-summary supplier-summary" aria-label="供应商往来汇总">
+  <div><span>供应商数</span><strong>{{ totals.supplier_count }}</strong></div>
+  <div><span>累计发票</span><strong>{{ totals.invoiced_amount|floatformat:2 }}</strong></div>
+  <div><span>累计付款</span><strong>{{ totals.paid_amount|floatformat:2 }}</strong></div>
+  <div><span>往来余额</span><strong{% if totals.balance < 0 %} class="text-warning"{% endif %}>{{ totals.balance|floatformat:2 }}</strong></div>
+</section>
+{% if coverage.code != "full" %}<div class="message message-warning" role="status"><strong>{{ coverage.label }}</strong>{% if coverage.detail %}：{{ coverage.detail }}{% endif %}</div>{% endif %}
+<section class="panel table-panel" aria-labelledby="supplier-title">
+  <div class="section-heading"><div><h2 id="supplier-title">供应商明细</h2><span class="section-index">{{ rows|length }} 项</span></div></div>
+  <div class="table-scroll">
+    <table class="data-table supplier-table">
+      <colgroup><col class="col-party-wide"><col class="col-money"><col class="col-money"><col class="col-money"><col class="col-money"><col class="col-money"><col class="col-date"></colgroup>
+      <thead><tr><th>供应商</th><th class="numeric">累计发票</th><th class="numeric">累计付款</th><th class="numeric">往来余额</th><th class="numeric">未付发票</th><th class="numeric">未核付款</th><th>最近业务</th></tr></thead>
+      <tbody>{% for row in rows %}<tr><td><a href="{% url 'reporting:supplier-detail' row.counterparty_id %}?as_of={{ as_of|date:'Y-m-d' }}">{{ row.counterparty_name }}</a></td><td class="numeric">{{ row.invoiced_amount|floatformat:2 }}</td><td class="numeric">{{ row.paid_amount|floatformat:2 }}</td><td class="numeric{% if row.balance < 0 %} text-warning{% endif %}">{{ row.balance|floatformat:2 }}</td><td class="numeric">{{ row.invoice_open_amount|floatformat:2 }}</td><td class="numeric">{{ row.payment_open_amount|floatformat:2 }}</td><td>{{ row.latest_activity_on|date:"Y-m-d"|default:"—" }}</td></tr>{% empty %}<tr><td class="empty-state" colspan="7">截至该日暂无供应商往来</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

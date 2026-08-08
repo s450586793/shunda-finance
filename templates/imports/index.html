@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}导入中心 | 顺达财务台账{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div><p class="eyebrow">数据接入</p><h1>导入中心</h1></div>
+</header>
+
+<section class="panel upload-panel" aria-labelledby="upload-title">
+  <div class="section-heading">
+    <div><h2 id="upload-title">新建导入</h2><span class="section-index">01</span></div>
+  </div>
+  <form method="post" enctype="multipart/form-data" class="upload-form">
+    {% csrf_token %}
+    <div class="field file-field">
+      <label for="{{ form.file.id_for_label }}">{{ form.file.label }}</label>
+      {{ form.file }}
+      {% for error in form.file.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+    </div>
+    <button class="button button-primary" type="submit">
+      <i data-lucide="upload" aria-hidden="true"></i>预检文件
+    </button>
+  </form>
+</section>
+
+<section class="panel table-panel" aria-labelledby="recent-title">
+  <div class="section-heading">
+    <div><h2 id="recent-title">最近导入</h2><span class="section-index">02</span></div>
+  </div>
+  <div class="table-scroll">
+    <table class="data-table batch-table">
+      <colgroup><col class="col-time"><col class="col-kind"><col class="col-count"><col class="col-count"><col class="col-count"><col class="col-status"><col class="col-action"></colgroup>
+      <thead><tr><th>导入时间</th><th>类型</th><th class="numeric">有效</th><th class="numeric">重复</th><th class="numeric">异常</th><th>状态</th><th><span class="sr-only">操作</span></th></tr></thead>
+      <tbody>
+      {% for batch in recent_batches %}
+        <tr>
+          <td>{{ batch.created_at|date:"Y-m-d H:i" }}</td>
+          <td>{{ batch.get_source_kind_display }}</td>
+          <td class="numeric">{{ batch.valid_rows }}</td>
+          <td class="numeric">{{ batch.duplicate_rows }}</td>
+          <td class="numeric{% if batch.error_rows %} text-error{% endif %}">{{ batch.error_rows }}</td>
+          <td><span class="status status-{{ batch.status }}">{{ batch.get_status_display }}</span></td>
+          <td><a class="icon-button" href="{% url 'imports:preview' batch.pk %}" aria-label="查看导入批次" title="查看"><i data-lucide="eye" aria-hidden="true"></i></a></td>
+        </tr>
+      {% empty %}
+        <tr><td class="empty-state" colspan="7">暂无导入批次</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

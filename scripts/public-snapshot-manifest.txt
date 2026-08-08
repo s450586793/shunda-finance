@@ -1,0 +1,22 @@
+# Paths allowed in the parentless public source snapshot.
+.dockerignore
+.env.example
+.gitattributes
+.github
+.gitignore
+Dockerfile
+README.md
+apps
+compose.yml
+config
+docs
+manage.py
+package-lock.json
+package.json
+playwright.config.ts
+pyproject.toml
+scripts
+static
+templates
+tests
+updater

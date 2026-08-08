@@ -1,0 +1,9 @@
+{% if page.paginator.num_pages > 1 %}
+<nav class="pagination" aria-label="分页">
+  <span>第 {{ page.number }} / {{ page.paginator.num_pages }} 页 · {{ page.paginator.count }} 条</span>
+  <div>
+    {% if page.has_previous %}<a class="button button-secondary" href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page.previous_page_number }}"><i data-lucide="chevron-left" aria-hidden="true"></i>上一页</a>{% endif %}
+    {% if page.has_next %}<a class="button button-secondary" href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page.next_page_number }}">下一页<i data-lucide="chevron-right" aria-hidden="true"></i></a>{% endif %}
+  </div>
+</nav>
+{% endif %}

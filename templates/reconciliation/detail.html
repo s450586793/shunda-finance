@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}核销详情 | 顺达财务台账{% endblock %}
+{% block content %}
+<header class="page-header page-header-actions">
+  <div><p class="eyebrow">核销记录</p><h1>{{ reconciliation.get_mode_display }}</h1><p class="page-meta">{{ reconciliation.created_at|date:"Y-m-d H:i" }} · {{ reconciliation.get_direction_display }}</p></div>
+  {% if not reconciliation.reversal %}<a class="button button-secondary" href="{% url 'reconciliation:reverse' reconciliation.pk %}"><i data-lucide="undo-2" aria-hidden="true"></i>撤销核销</a>{% endif %}
+</header>
+
+<section class="panel preview-summary">
+  <dl class="detail-grid">
+    <div><dt>状态</dt><dd>{% if reconciliation.reversal %}<span class="status status-void">已撤销</span>{% else %}<span class="status status-normal">已生效</span>{% endif %}</dd></div>
+    <div><dt>创建人员</dt><dd>{{ reconciliation.created_by.get_username }}</dd></div>
+    <div><dt>备注</dt><dd>{{ reconciliation.note|default:"—" }}</dd></div>
+    {% if reconciliation.reversal %}<div><dt>撤销原因</dt><dd>{{ reconciliation.reversal.reason }}</dd></div><div><dt>撤销人员</dt><dd>{{ reconciliation.reversal.reversed_by.get_username }}</dd></div>{% endif %}
+  </dl>
+</section>
+
+<section class="panel table-panel" aria-labelledby="allocation-title">
+  <div class="section-heading"><div><h2 id="allocation-title">核销明细</h2><span class="section-index">01</span></div></div>
+  <div class="table-scroll"><table class="data-table batch-table"><thead><tr><th>发票号码</th><th>往来单位</th><th>资金日期</th><th>资金渠道</th><th class="numeric">核销金额</th></tr></thead><tbody>
+  {% for item in allocation_rows %}<tr><td class="mono">{{ item.record.invoice.invoice_number }}</td><td>{{ item.record.invoice.counterparty.name }}</td><td>{{ item.record.transaction.occurred_at|date:"Y-m-d" }}</td><td>{{ item.record.transaction.get_channel_display }}</td><td class="numeric">{{ item.amount_text }}</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}发票台账 | 顺达财务台账{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div><p class="eyebrow">台账查询</p><h1>应收应付</h1></div>
+  <nav class="view-tabs" aria-label="台账类型"><a href="{% url 'ledger:invoice-list' %}" aria-current="page">发票台账</a><a href="{% url 'ledger:transaction-list' %}">资金流水</a></nav>
+</header>
+
+<form method="get" class="toolbar ledger-toolbar">
+  <label><span>方向</span><select name="direction"><option value="">全部</option>{% for value, label in directions %}<option value="{{ value }}"{% if request.GET.direction == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <label><span>往来单位</span><select name="counterparty"><option value="">全部</option>{% for party in counterparties %}<option value="{{ party.pk }}"{% if request.GET.counterparty == party.pk|stringformat:"s" %} selected{% endif %}>{{ party.name }}{% if not party.active %}（停用）{% endif %}</option>{% endfor %}</select></label>
+  <label><span>开始日期</span><input type="date" name="issue_start" value="{{ request.GET.issue_start }}"></label>
+  <label><span>结束日期</span><input type="date" name="issue_end" value="{{ request.GET.issue_end }}"></label>
+  <label><span>状态</span><select name="status"><option value="">全部</option>{% for value, label in statuses %}<option value="{{ value }}"{% if request.GET.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <label><span>核销状态</span><select name="reconciliation_state"><option value="">全部</option>{% for value, label in reconciliation_states %}<option value="{{ value }}"{% if request.GET.reconciliation_state == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <label class="search-field"><span>发票号码</span><input type="search" name="invoice_number" value="{{ request.GET.invoice_number }}"></label>
+  <button class="button button-primary" type="submit"><i data-lucide="search" aria-hidden="true"></i>查询</button>
+</form>
+
+<section class="panel table-panel">
+  <div class="table-scroll">
+    <table class="data-table invoice-table">
+      <colgroup><col class="col-date"><col class="col-direction"><col class="col-invoice"><col class="col-party"><col class="col-status"><col class="col-money"><col class="col-money"></colgroup>
+      <thead><tr><th>开票日期</th><th>方向</th><th>发票号码</th><th>往来单位</th><th>状态</th><th class="numeric">发票金额</th><th class="numeric">未核金额</th></tr></thead>
+      <tbody>
+      {% for invoice in page.object_list %}
+        <tr><td>{{ invoice.issue_date|date:"Y-m-d" }}</td><td>{{ invoice.get_direction_display }}</td><td class="mono">{{ invoice.invoice_number }}</td><td>{{ invoice.counterparty.name }}</td><td><span class="status status-{{ invoice.status }}">{{ invoice.get_status_display }}</span></td><td class="numeric">{{ invoice.total_amount|floatformat:2 }}</td><td class="numeric{% if invoice.open_amount %} text-warning{% endif %}">{{ invoice.open_amount|floatformat:2 }}</td></tr>
+      {% empty %}<tr><td class="empty-state" colspan="7">暂无匹配发票</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "shared/pagination.html" %}
+</section>
+{% endblock %}

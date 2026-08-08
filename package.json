@@ -1,0 +1,16 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:js": "node --test static/js/*.test.js",
+    "test:e2e": "NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost playwright test",
+    "vendor": "mkdir -p static/vendor && cp node_modules/echarts/dist/echarts.min.js static/vendor/echarts.min.js && cp node_modules/lucide/dist/umd/lucide.min.js static/vendor/lucide.min.js"
+  },
+  "dependencies": {
+    "echarts": "6.1.0",
+    "lucide": "0.468.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.0"
+  }
+}

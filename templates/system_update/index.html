@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}系统升级 | 顺达财务台账{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div><p class="eyebrow">系统维护</p><h1>系统升级</h1></div>
+</header>
+
+<div data-system-update
+     data-status-url="{% url 'system-update:status' %}"
+     data-check-url="{% url 'system-update:check' %}"
+     data-start-url="{% url 'system-update:start' %}">
+<section class="panel system-update-panel" aria-labelledby="system-update-title">
+  <input type="hidden" data-csrf value="{{ csrf_token }}">
+  <div class="section-heading">
+    <div><h2 id="system-update-title">版本状态</h2><span class="section-index">01</span></div>
+  </div>
+  <div class="system-update-version-grid">
+    <dl>
+      <dt>当前版本</dt><dd class="mono system-update-version" data-current-version>—</dd>
+      <dt>发布时间</dt><dd class="mono system-update-published-at" data-current-published-at>-</dd>
+    </dl>
+    <dl>
+      <dt>可用版本</dt><dd class="mono system-update-version" data-latest-version>—</dd>
+      <dt>发布时间</dt><dd class="mono system-update-published-at" data-latest-published-at>-</dd>
+    </dl>
+  </div>
+  <div class="system-update-actions">
+    <button class="button button-secondary" type="button" data-check><i data-lucide="refresh-cw" aria-hidden="true"></i>检查更新</button>
+    <button class="icon-button" type="button" data-status-refresh aria-label="刷新升级状态" title="刷新升级状态"><i data-lucide="refresh-cw" aria-hidden="true"></i></button>
+    <button class="button button-primary system-update-start" type="button" data-start hidden><i data-lucide="download" aria-hidden="true"></i><span data-start-label>等待检查</span></button>
+  </div>
+</section>
+
+<section class="panel system-update-panel" aria-labelledby="system-update-progress-title">
+  <div class="section-heading">
+    <div><h2 id="system-update-progress-title">升级进度</h2><span class="status" data-update-status data-state="current">等待检查</span></div>
+  </div>
+  <div class="system-update-progress-wrap">
+    <ol class="system-update-progress" data-progress aria-label="升级步骤">
+      <li data-progress-stage="checking"><i data-lucide="refresh-cw" aria-hidden="true"></i><span>检查升级条件</span></li>
+      <li data-progress-stage="backing_up"><i data-lucide="shield-check" aria-hidden="true"></i><span>创建备份</span></li>
+      <li data-progress-stage="pulling"><i data-lucide="download" aria-hidden="true"></i><span>下载升级版本</span></li>
+      <li data-progress-stage="stopping_web"><i data-lucide="refresh-cw" aria-hidden="true"></i><span>准备切换</span></li>
+      <li data-progress-stage="migrating"><i data-lucide="refresh-cw" aria-hidden="true"></i><span>执行数据迁移</span></li>
+      <li data-progress-stage="starting_web"><i data-lucide="refresh-cw" aria-hidden="true"></i><span>启动服务</span></li>
+      <li data-progress-stage="checking_health"><i data-lucide="shield-check" aria-hidden="true"></i><span>检查服务状态</span></li>
+      <li data-progress-stage="stabilizing"><i data-lucide="shield-check" aria-hidden="true"></i><span>稳定运行状态</span></li>
+      <li data-progress-stage="persisting_version"><i data-lucide="refresh-cw" aria-hidden="true"></i><span>记录版本</span></li>
+      <li data-progress-stage="cleaning"><i data-lucide="trash-2" aria-hidden="true"></i><span>清理临时资源</span></li>
+      <li data-progress-stage="rolling_back"><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>回退版本</span></li>
+    </ol>
+    <dl class="system-update-task-states">
+      <div><dt><i data-lucide="shield-check" aria-hidden="true"></i>备份</dt><dd data-backup-state>等待任务</dd></div>
+      <div><dt><i data-lucide="rotate-ccw" aria-hidden="true"></i>回退</dt><dd data-rollback-state>未发生</dd></div>
+      <div><dt><i data-lucide="trash-2" aria-hidden="true"></i>清理</dt><dd data-cleanup-state>等待任务</dd></div>
+    </dl>
+  </div>
+  <dl class="system-update-task-metadata" aria-label="升级任务信息">
+    <div><dt>任务 ID</dt><dd class="mono" data-task-id>-</dd></div>
+    <div><dt>创建时间</dt><dd class="mono" data-task-created-at>-</dd></div>
+    <div><dt>开始时间</dt><dd class="mono" data-task-started-at>-</dd></div>
+    <div><dt>完成时间</dt><dd class="mono" data-task-finished-at>-</dd></div>
+  </dl>
+  <p class="system-update-guidance" data-operation-guidance data-state="" role="alert" hidden></p>
+  <p class="system-update-message" data-update-message data-state="" role="status" hidden></p>
+  <p class="system-update-availability" data-update-availability>等待检查</p>
+</section>
+
+<dialog class="system-update-dialog" data-confirm-dialog aria-labelledby="update-confirm-title">
+  <form method="dialog">
+    <div class="system-update-dialog-heading"><i data-lucide="alert-triangle" aria-hidden="true"></i><h2 id="update-confirm-title">确认安装更新</h2></div>
+    <p>将安装版本 <strong class="mono" data-confirm-version></strong>。</p>
+    <div class="system-update-dialog-actions">
+      <button class="button button-secondary" type="submit">取消</button>
+      <button class="button button-primary" type="button" data-confirm-start>确认升级</button>
+    </div>
+  </form>
+</dialog>
+</div>
+<script type="module" src="{% static 'js/system-update.js' %}"></script>
+{% endblock %}

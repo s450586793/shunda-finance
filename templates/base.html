@@ -1,0 +1,84 @@
+{% load static %}
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>{% block title %}顺达财务台账{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <script src="{% static 'vendor/lucide.min.js' %}" defer></script>
+</head>
+<body>
+{% block body %}
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="主导航">
+      <a class="brand" href="{% url 'ledger:invoice-list' %}">
+        <span class="brand-mark">顺</span>
+        <span><strong>顺达财务台账</strong><small>财务工作台</small></span>
+      </a>
+      <nav class="nav-list">
+        {% for item in navigation_items %}
+          {% if item.href %}
+            <a href="{{ item.href }}"{% if request.path == item.href %} aria-current="page"{% endif %}>
+              <i data-lucide="{{ item.icon }}" aria-hidden="true"></i><span>{{ item.label }}</span>
+            </a>
+          {% else %}
+            <span class="nav-disabled" aria-disabled="true">
+              <i data-lucide="{{ item.icon }}" aria-hidden="true"></i><span>{{ item.label }}</span>
+            </span>
+          {% endif %}
+        {% endfor %}
+      </nav>
+      <div class="sidebar-account">
+        <span class="account-name">{{ user.get_username }}</span>
+        <form method="post" action="{% url 'logout' %}">
+          {% csrf_token %}
+          <button class="icon-button" type="submit" aria-label="退出登录" title="退出登录">
+            <i data-lucide="log-out" aria-hidden="true"></i>
+          </button>
+        </form>
+      </div>
+    </aside>
+
+    <div class="workspace">
+      <header class="mobile-header">
+        <a class="mobile-brand" href="{% url 'ledger:invoice-list' %}">顺达财务台账</a>
+        <details class="mobile-nav">
+          <summary class="icon-button" aria-label="打开导航" title="导航">
+            <i data-lucide="menu" aria-hidden="true"></i>
+          </summary>
+          <nav aria-label="移动端主导航">
+            {% for item in navigation_items %}
+              {% if item.href %}
+                <a href="{{ item.href }}"><i data-lucide="{{ item.icon }}" aria-hidden="true"></i>{{ item.label }}</a>
+              {% else %}
+                <span aria-disabled="true"><i data-lucide="{{ item.icon }}" aria-hidden="true"></i>{{ item.label }}</span>
+              {% endif %}
+            {% endfor %}
+            <form method="post" action="{% url 'logout' %}">
+              {% csrf_token %}
+              <button type="submit"><i data-lucide="log-out" aria-hidden="true"></i>退出登录</button>
+            </form>
+          </nav>
+        </details>
+      </header>
+
+      <main class="main-content">
+        {% if messages %}
+          <div class="message-stack" aria-live="polite">
+            {% for message in messages %}<div class="message message-{{ message.tags }}">{{ message }}</div>{% endfor %}
+          </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+{% endblock %}
+<script>
+  window.addEventListener("DOMContentLoaded", function () {
+    if (window.lucide) window.lucide.createIcons();
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}经营总览 | 顺达财务台账{% endblock %}
+{% block content %}
+<header class="page-header page-header-actions">
+  <div><p class="eyebrow">经营视图</p><h1>经营总览</h1><p class="page-meta">{{ month }} 自然月</p></div>
+  <form class="month-control" method="get">
+    <label><span class="sr-only">月份</span><input type="month" name="month" value="{{ month }}"></label>
+    <button class="button button-secondary" type="submit"><i data-lucide="calendar-days" aria-hidden="true"></i>切换</button>
+  </form>
+</header>
+{% if payload.data_incomplete %}<div class="message message-warning" role="status">资料不完整，指标仅按当前已录入数据计算。</div>{% endif %}
+<section class="panel dashboard-metrics" aria-label="关键经营指标">
+  <div><span>当前资金</span><strong>{% if payload.current_funds is None %}—{% else %}{{ payload.current_funds|floatformat:2 }}{% endif %}</strong></div>
+  <div><span>本月收款</span><strong>{{ payload.month_inflow|floatformat:2 }}</strong><small>付款 {{ payload.month_outflow|floatformat:2 }}</small></div>
+  <div><span>应收余额</span><strong>{{ payload.receivables|floatformat:2 }}</strong><small>逾期 {{ payload.overdue_receivables|floatformat:2 }}</small></div>
+  <div><span>应付余额</span><strong>{{ payload.payables|floatformat:2 }}</strong><small>7 日内 {{ payload.due_within_7_days|floatformat:2 }}</small></div>
+</section>
+<div class="dashboard-grid">
+  <section class="panel chart-panel chart-panel-wide" aria-labelledby="cashflow-title"><div class="section-heading"><div><h2 id="cashflow-title">每日资金流</h2><span class="section-index">01</span></div></div><div id="cashflow-chart" class="chart" aria-label="每日资金流入与流出"></div></section>
+  <section class="panel chart-panel" aria-labelledby="aging-title"><div class="section-heading"><div><h2 id="aging-title">应收账龄</h2><span class="section-index">02</span></div></div><div id="receivable-aging-chart" class="chart" aria-label="应收账龄分布"></div></section>
+  <section class="panel chart-panel" aria-labelledby="due-title"><div class="section-heading"><div><h2 id="due-title">应付到期</h2><span class="section-index">03</span></div></div><div id="payable-due-chart" class="chart" aria-label="应付到期分布"></div></section>
+</div>
+<section class="panel risk-panel" aria-labelledby="risk-title">
+  <div class="section-heading"><div><h2 id="risk-title">风险事项</h2><a href="{% url 'reporting:exceptions' %}" class="text-info">查看清单</a></div></div>
+  <div class="risk-list">{% for label, count in exception_counts %}<div><span>{{ label }}</span><strong>{{ count }}</strong></div>{% empty %}<p class="empty-state compact-empty">本月末暂无异常事项</p>{% endfor %}</div>
+</section>
+{{ dashboard_chart_data|json_script:"dashboard-data" }}
+<script src="{% static 'vendor/echarts.min.js' %}"></script>
+<script type="module" src="{% static 'js/dashboard.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}往来单位 | 顺达财务台账{% endblock %}
+{% block content %}
+<header class="page-header"><div><p class="eyebrow">单位资料</p><h1>往来单位</h1></div></header>
+<form method="get" class="toolbar party-toolbar">
+  <label class="search-field"><span>名称或税号</span><input type="search" name="query" value="{{ request.GET.query }}"></label>
+  <label><span>类型</span><select name="kind"><option value="">全部</option><option value="customer"{% if request.GET.kind == "customer" %} selected{% endif %}>客户</option><option value="supplier"{% if request.GET.kind == "supplier" %} selected{% endif %}>供应商</option></select></label>
+  <label><span>启用状态</span><select name="active"><option value="">全部</option><option value="true"{% if request.GET.active == "true" %} selected{% endif %}>启用</option><option value="false"{% if request.GET.active == "false" %} selected{% endif %}>停用</option></select></label>
+  <button class="button button-primary" type="submit"><i data-lucide="search" aria-hidden="true"></i>查询</button>
+</form>
+<section class="panel table-panel">
+  <div class="table-scroll">
+    <table class="data-table party-table">
+      <colgroup><col class="col-party-wide"><col class="col-tax"><col class="col-type"><col class="col-type"><col class="col-status"></colgroup>
+      <thead><tr><th>单位名称</th><th>税号</th><th>客户</th><th>供应商</th><th>状态</th></tr></thead>
+      <tbody>
+      {% for party in page.object_list %}
+        <tr><td>{{ party.name }}</td><td class="mono">{{ party.tax_id|default:"—" }}</td><td>{% if party.is_customer %}<span class="text-info">是</span>{% else %}—{% endif %}</td><td>{% if party.is_supplier %}<span class="text-info">是</span>{% else %}—{% endif %}</td><td>{% if party.active %}<span class="status status-active">启用</span>{% else %}<span class="status status-inactive">停用</span>{% endif %}</td></tr>
+      {% empty %}<tr><td class="empty-state" colspan="5">暂无匹配单位</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "shared/pagination.html" %}
+</section>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}异常清单 | 顺达财务台账{% endblock %}
+{% block content %}
+<header class="page-header page-header-actions">
+  <div><p class="eyebrow">风险核查</p><h1>异常清单</h1><p class="page-meta">截至 {{ as_of|date:"Y-m-d" }}</p></div>
+  <nav class="view-tabs" aria-label="应收应付视图">
+    <a href="{% url 'reporting:receivables' %}">应收</a>
+    <a href="{% url 'reporting:payables' %}">应付</a>
+    <a href="{% url 'reporting:suppliers' %}">供应商</a>
+    <a href="{% url 'reporting:exceptions' %}" aria-current="page">异常</a>
+  </nav>
+</header>
+<form class="toolbar reporting-toolbar" method="get">
+  <label><span>截止日期</span><input type="date" name="as_of" value="{{ as_of|date:'Y-m-d' }}"></label>
+  <button class="button button-secondary" type="submit"><i data-lucide="filter" aria-hidden="true"></i>查询</button>
+</form>
+<section class="panel table-panel" aria-labelledby="exception-title">
+  <div class="section-heading"><div><h2 id="exception-title">待处理事项</h2><span class="section-index">{{ items|length }} 项</span></div></div>
+  <div class="table-scroll">
+    <table class="data-table exception-table">
+      <colgroup><col class="col-type-wide"><col class="col-date"><col class="col-party-wide"><col><col class="col-money"></colgroup>
+      <thead><tr><th>类型</th><th>业务日期</th><th>往来单位</th><th>说明</th><th class="numeric">相关金额</th></tr></thead>
+      <tbody>{% for item in items %}<tr><td><span class="status status-partial">{{ item.type.value }}</span></td><td>{{ item.occurred_on|date:"Y-m-d"|default:"—" }}</td><td>{{ item.counterparty_name }}</td><td>{{ item.detail }}</td><td class="numeric">{% if item.amount is not None %}{{ item.amount|floatformat:2 }}{% else %}—{% endif %}</td></tr>{% empty %}<tr><td class="empty-state" colspan="5">截至该日暂无异常事项</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

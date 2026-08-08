@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}登录 | 顺达财务台账{% endblock %}
+{% block body %}
+<main class="login-shell">
+  <section class="login-panel" aria-labelledby="login-title">
+    <header>
+      <span class="brand-mark">顺</span>
+      <div><h1 id="login-title">顺达财务台账</h1><p>财务工作台</p></div>
+    </header>
+    {% if form.non_field_errors %}
+      <div class="message message-error">用户名或密码不正确。</div>
+    {% endif %}
+    <form method="post" class="form-stack">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next }}">
+      <label for="id_username">用户名</label>
+      <input id="id_username" name="username" type="text" autocomplete="username" required autofocus>
+      <label for="id_password">密码</label>
+      <input id="id_password" name="password" type="password" autocomplete="current-password" required>
+      <button class="button button-primary" type="submit">
+        <i data-lucide="log-in" aria-hidden="true"></i>登录
+      </button>
+    </form>
+  </section>
+</main>
+{% endblock %}

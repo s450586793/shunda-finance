@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}结算批次详情 | 顺达财务台账{% endblock %}
+{% block content %}
+<header class="page-header page-header-actions">
+  <div><p class="eyebrow">结算批次</p><h1>{{ batch.counterparty.name }}</h1><p class="page-meta">{{ batch.period_start|date:"Y-m-d" }} 至 {{ batch.period_end|date:"Y-m-d" }} · {{ batch.get_direction_display }}</p></div>
+  <a class="button button-secondary" href="{% url 'reconciliation:settlement-list' %}"><i data-lucide="undo-2" aria-hidden="true"></i>返回</a>
+</header>
+
+{% if form.errors %}
+<div class="message-stack" aria-live="polite">
+  {% for error in form.non_field_errors %}<div class="message message-error">{{ error }}</div>{% endfor %}
+  {% for field in form %}{% for error in field.errors %}<div class="message message-error">{{ error }}</div>{% endfor %}{% endfor %}
+</div>
+{% endif %}
+
+<section class="metric-strip panel" aria-label="结算统计">
+  <div><span>发票合计</span><strong>{{ invoice_total }}</strong></div>
+  <div><span>资金合计</span><strong>{{ money_total }}</strong></div>
+  <div><span>本次核销</span><strong>{{ allocated_total }}</strong></div>
+  <div><span>未分配</span><strong{% if invoice_unallocated != "0.00" or money_unallocated != "0.00" %} class="text-warning"{% endif %}>{{ invoice_unallocated }} / {{ money_unallocated }}</strong></div>
+</section>
+
+<div class="settlement-columns">
+  <section class="panel table-panel" aria-labelledby="batch-invoice-title">
+    <div class="section-heading"><div><h2 id="batch-invoice-title">发票明细</h2><span class="section-index">01</span></div></div>
+    <div class="table-scroll"><table class="data-table workbench-table"><thead><tr><th>日期</th><th>发票号码</th><th class="numeric">未核金额</th><th>状态</th></tr></thead><tbody>
+    {% for item in invoice_items %}<tr><td>{{ item.record.issue_date|date:"Y-m-d" }}</td><td class="mono">{{ item.record.invoice_number }}</td><td class="numeric">{{ item.open_text }}</td><td>{% if item.occupied %}<span class="status status-void">已被占用</span>{% else %}<span class="status status-normal">可核销</span>{% endif %}</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  <section class="panel table-panel" aria-labelledby="batch-money-title">
+    <div class="section-heading"><div><h2 id="batch-money-title">资金明细</h2><span class="section-index">02</span></div></div>
+    <div class="table-scroll"><table class="data-table workbench-table"><thead><tr><th>日期</th><th>渠道</th><th class="numeric">未核金额</th><th>状态</th></tr></thead><tbody>
+    {% for item in transaction_items %}<tr><td>{{ item.record.occurred_at|date:"Y-m-d" }}</td><td>{{ item.record.get_channel_display }}</td><td class="numeric">{{ item.open_text }}</td><td>{% if item.occupied %}<span class="status status-void">已被占用</span>{% else %}<span class="status status-normal">可核销</span>{% endif %}</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+</div>
+
+<section class="panel settlement-confirm-panel">
+  {% if batch.status == "confirmed" %}
+    <span class="confirmed-label"><i data-lucide="circle-check" aria-hidden="true"></i>批次已确认</span>
+  {% elif can_confirm %}
+    <form method="post" action="{% url 'reconciliation:settlement-confirm' batch.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="version" value="{{ batch.version }}">
+      {% for row in allocation_rows %}
+        <input type="hidden" name="invoice_id" value="{{ row.invoice_id }}">
+        <input type="hidden" name="transaction_id" value="{{ row.transaction_id }}">
+        <input type="hidden" name="amount" value="{{ row.amount_input }}">
+      {% endfor %}
+      <button class="button button-primary" type="submit"><i data-lucide="check" aria-hidden="true"></i>确认结算</button>
+    </form>
+  {% else %}
+    <span class="text-warning">批次明细已变化或金额不平衡，当前不能确认。</span>
+  {% endif %}
+</section>
+{% endblock %}

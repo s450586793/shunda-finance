@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ supplier.name }} | 供应商往来{% endblock %}
+{% block content %}
+<header class="page-header page-header-actions supplier-detail-header">
+  <div><p class="eyebrow">供应商往来</p><h1>{{ supplier.name }}</h1><p class="page-meta">截至 {{ as_of|date:"Y-m-d" }}</p></div>
+  <nav class="view-tabs" aria-label="应收应付视图">
+    <a href="{% url 'reporting:receivables' %}">应收</a>
+    <a href="{% url 'reporting:payables' %}">应付</a>
+    <a href="{% url 'reporting:suppliers' %}?as_of={{ as_of|date:'Y-m-d' }}" aria-current="page">供应商</a>
+    <a href="{% url 'reporting:exceptions' %}">异常</a>
+  </nav>
+</header>
+<div class="detail-actions"><a class="button button-secondary" href="{% url 'reporting:suppliers' %}?as_of={{ as_of|date:'Y-m-d' }}"><i data-lucide="arrow-left" aria-hidden="true"></i>返回供应商</a></div>
+<section class="panel reporting-summary supplier-summary" aria-label="供应商余额汇总">
+  <div><span>往来余额</span><strong{% if summary.balance < 0 %} class="text-warning"{% endif %}>{{ summary.balance|floatformat:2 }}</strong></div>
+  <div><span>未付发票</span><strong>{{ summary.invoice_open_amount|floatformat:2 }}</strong></div>
+  <div><span>未核付款</span><strong>{{ summary.payment_open_amount|floatformat:2 }}</strong></div>
+  <div><span>资料完整性</span><strong class="coverage-value">{{ coverage.label }}</strong></div>
+</section>
+{% if coverage.code != "full" %}<div class="message message-warning" role="status"><strong>{{ coverage.label }}</strong>{% if coverage.detail %}：{{ coverage.detail }}{% endif %}</div>{% endif %}
+<section class="panel table-panel" aria-labelledby="supplier-ledger-title">
+  <div class="section-heading"><div><h2 id="supplier-ledger-title">逐笔往来</h2><span class="section-index">{{ rows|length }} 项</span></div></div>
+  <div class="table-scroll">
+    <table class="data-table supplier-ledger-table">
+      <colgroup><col class="col-date"><col class="supplier-col-kind"><col class="supplier-col-reference"><col class="col-channel"><col class="col-money"><col class="col-money"><col class="col-money"><col class="col-money"><col class="col-money"><col class="supplier-col-status"><col class="supplier-col-action"></colgroup>
+      <thead><tr><th>日期</th><th>类型</th><th>参考号</th><th>渠道</th><th class="numeric">增加</th><th class="numeric">减少</th><th class="numeric">往来余额</th><th class="numeric">已核销</th><th class="numeric">未核销</th><th>状态</th><th>操作</th></tr></thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.occurred_on|date:"Y-m-d" }}</td>
+            <td>{% if row.kind == "invoice" %}<i data-lucide="receipt-text" aria-hidden="true"></i> 发票{% else %}<i data-lucide="{% if row.channel == 'wechat' %}message-square{% else %}banknote{% endif %}" aria-hidden="true"></i> 付款{% endif %}</td>
+            <td class="mono" title="{{ row.reference }}">{{ row.reference }}</td>
+            <td>{% if row.channel == "bank" %}银行{% elif row.channel == "wechat" %}微信{% else %}—{% endif %}</td>
+            <td class="numeric">{{ row.increase|floatformat:2 }}</td>
+            <td class="numeric">{{ row.decrease|floatformat:2 }}</td>
+            <td class="numeric{% if row.running_balance < 0 %} text-warning{% endif %}">{{ row.running_balance|floatformat:2 }}</td>
+            <td class="numeric">{{ row.allocated_amount|floatformat:2 }}</td>
+            <td class="numeric">{{ row.open_amount|floatformat:2 }}</td>
+            <td><span class="status{% if row.open_amount > 0 %} status-partial{% else %} status-completed{% endif %}">{% if row.open_amount > 0 %}未核销{% else %}已核销{% endif %}</span></td>
+            <td><div class="supplier-actions">{% if is_finance %}{% if row.source_file_id %}<a class="icon-button" href="{% url 'imports:source' row.import_batch_id %}" aria-label="下载原文件" title="下载原文件"><i data-lucide="download" aria-hidden="true"></i></a>{% endif %}{% if row.kind == "invoice" and row.can_reconcile %}<a class="button button-secondary supplier-reconcile" href="{% url 'reconciliation:workbench' %}?invoice={{ row.reference_id }}">去核销</a>{% endif %}{% endif %}</div></td>
+          </tr>
+        {% empty %}<tr><td class="empty-state" colspan="11">截至该日暂无往来记录</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

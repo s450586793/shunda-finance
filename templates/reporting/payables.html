@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}应付账款 | 顺达财务台账{% endblock %}
+{% block content %}
+<header class="page-header page-header-actions">
+  <div><p class="eyebrow">往来汇总</p><h1>应付账款</h1><p class="page-meta">截至 {{ as_of|date:"Y-m-d" }}</p></div>
+  <nav class="view-tabs" aria-label="应收应付视图">
+    <a href="{% url 'reporting:receivables' %}">应收</a>
+    <a href="{% url 'reporting:payables' %}" aria-current="page">应付</a>
+    <a href="{% url 'reporting:suppliers' %}">供应商</a>
+    <a href="{% url 'reporting:exceptions' %}">异常</a>
+  </nav>
+</header>
+<form class="toolbar reporting-toolbar" method="get">
+  <label><span>截止日期</span><input type="date" name="as_of" value="{{ as_of|date:'Y-m-d' }}"></label>
+  <button class="button button-secondary" type="submit"><i data-lucide="filter" aria-hidden="true"></i>查询</button>
+</form>
+<section class="panel reporting-summary" aria-label="应付汇总">
+  <div><span>应付余额</span><strong>{{ total|floatformat:2 }}</strong></div>
+</section>
+<section class="panel table-panel" aria-labelledby="payable-title">
+  <div class="section-heading"><div><h2 id="payable-title">未付发票</h2><span class="section-index">{{ rows|length }} 项</span></div></div>
+  <div class="table-scroll">
+    <table class="data-table reporting-table">
+      <colgroup><col class="col-date"><col><col class="col-date"><col class="col-type"><col class="col-money"></colgroup>
+      <thead><tr><th>开票日期</th><th>往来单位</th><th>到期日期</th><th>账龄</th><th class="numeric">未付金额</th></tr></thead>
+      <tbody>{% for row in rows %}<tr><td>{{ row.issue_date|date:"Y-m-d" }}</td><td>{{ row.counterparty_name }}</td><td>{{ row.due_date|date:"Y-m-d"|default:"—" }}</td><td><span class="status">{{ row.aging_bucket }}</span></td><td class="numeric text-warning">{{ row.open_amount|floatformat:2 }}</td></tr>{% empty %}<tr><td class="empty-state" colspan="5">截至该日暂无应付余额</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

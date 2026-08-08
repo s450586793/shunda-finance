@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}导入预检 | 顺达财务台账{% endblock %}
+{% block content %}
+<header class="page-header page-header-actions">
+  <div><p class="eyebrow">导入预检</p><h1>导入预检</h1><p class="page-meta">{{ batch.get_source_kind_display }} · {{ batch.created_at|date:"Y-m-d H:i" }}</p></div>
+  <a class="button button-secondary" href="{% url 'imports:index' %}"><i data-lucide="undo-2" aria-hidden="true"></i>返回</a>
+</header>
+
+<section class="metric-strip panel" aria-label="预检统计">
+  <div><span>总数据</span><strong>{{ batch.total_rows }}</strong></div>
+  <div><span>有效数据</span><strong class="text-success">{{ batch.valid_rows }}</strong></div>
+  <div><span>重复数据</span><strong class="text-warning">{{ batch.duplicate_rows }}</strong></div>
+  <div><span>异常数据</span><strong class="text-error">{{ batch.error_rows }}</strong></div>
+</section>
+
+<section class="panel preview-summary">
+  <dl class="detail-grid">
+    <div><dt>数据期间</dt><dd>{% if batch.period_start %}{{ batch.period_start|date:"Y-m-d" }} 至 {{ batch.period_end|date:"Y-m-d" }}{% else %}—{% endif %}</dd></div>
+    <div><dt>处理状态</dt><dd><span class="status status-{{ batch.status }}">{{ batch.get_status_display }}</span></dd></div>
+    <div><dt>导入人员</dt><dd>{{ batch.created_by.get_username }}</dd></div>
+  </dl>
+  <div class="action-row">
+    <a class="button button-secondary" href="{% url 'imports:source' batch.pk %}"><i data-lucide="download" aria-hidden="true"></i>下载原文件</a>
+    {% if batch.error_rows %}<a class="button button-secondary" href="{% url 'imports:issues' batch.pk %}"><i data-lucide="download" aria-hidden="true"></i>下载问题 CSV</a>{% endif %}
+    {% if not batch.confirmed_at %}
+      <form method="post" action="{% url 'imports:confirm' batch.pk %}">
+        {% csrf_token %}
+        <button class="button button-primary" type="submit"><i data-lucide="check" aria-hidden="true"></i>确认导入</button>
+      </form>
+    {% else %}
+      <span class="confirmed-label"><i data-lucide="circle-check" aria-hidden="true"></i>已确认</span>
+    {% endif %}
+  </div>
+</section>
+
+{% if issue_page.paginator.count %}
+<section class="panel" aria-labelledby="issue-title">
+  <div class="section-heading"><div><h2 id="issue-title">逐行问题</h2><span class="section-index">03</span></div></div>
+  <div class="table-scroll">
+    <table class="data-table issue-table">
+      <colgroup><col class="col-row"><col class="col-field"><col class="col-code"><col></colgroup>
+      <thead><tr><th>行号</th><th>字段</th><th>代码</th><th>问题</th></tr></thead>
+      <tbody>
+      {% for row in issue_page.object_list %}
+        {% for issue in row.issues %}
+          <tr><td>{{ row.row_number }}</td><td>{{ issue.field|default:"—" }}</td><td><code>{{ issue.code }}</code></td><td>{{ issue.message }}</td></tr>
+        {% endfor %}
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if issue_page.paginator.num_pages > 1 %}
+  <nav class="pagination" aria-label="问题分页">
+    <span>第 {{ issue_page.number }} / {{ issue_page.paginator.num_pages }} 页 · {{ issue_page.paginator.count }} 条</span>
+    <div>
+      {% if issue_page.has_previous %}<a class="button button-secondary" href="?issue_page={{ issue_page.previous_page_number }}"><i data-lucide="chevron-left" aria-hidden="true"></i>上一页</a>{% endif %}
+      {% if issue_page.has_next %}<a class="button button-secondary" href="?issue_page={{ issue_page.next_page_number }}">下一页<i data-lucide="chevron-right" aria-hidden="true"></i></a>{% endif %}
+    </div>
+  </nav>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

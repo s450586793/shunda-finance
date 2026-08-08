@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}人工核销 | 顺达财务台账{% endblock %}
+{% block content %}
+<header class="page-header page-header-actions">
+  <div><p class="eyebrow">资金匹配</p><h1>人工核销</h1></div>
+  <a class="button button-secondary" href="{% url 'reconciliation:settlement-list' %}"><i data-lucide="layers-3" aria-hidden="true"></i>结算批次</a>
+</header>
+
+<form method="get" class="toolbar reconciliation-filter">
+  <label><span>开始日期</span><input type="date" name="start" value="{{ start }}"></label>
+  <label><span>结束日期</span><input type="date" name="end" value="{{ end }}"></label>
+  {% if selected_invoice %}<input type="hidden" name="invoice" value="{{ selected_invoice.id }}">{% endif %}
+  <button class="button button-primary" type="submit"><i data-lucide="search" aria-hidden="true"></i>查询</button>
+</form>
+
+{% if form.errors %}
+<div class="message-stack" aria-live="polite">
+  {% for error in form.non_field_errors %}<div class="message message-error">{{ error }}</div>{% endfor %}
+  {% for field in form %}{% for error in field.errors %}<div class="message message-error">{{ error }}</div>{% endfor %}{% endfor %}
+</div>
+{% endif %}
+
+<div class="reconciliation-columns">
+  <section class="panel table-panel" aria-labelledby="invoice-title">
+    <div class="section-heading"><div><h2 id="invoice-title">待核发票</h2><span class="section-index">01</span></div></div>
+    <div class="table-scroll">
+      <table class="data-table workbench-table">
+        <colgroup><col class="col-date"><col class="col-invoice"><col><col class="col-money"></colgroup>
+        <thead><tr><th>日期</th><th>发票号码</th><th>往来单位</th><th class="numeric">未核金额</th></tr></thead>
+        <tbody>
+        {% for item in invoice_items %}
+          <tr{% if selected_invoice.id == item.record.id %} class="selected-row"{% endif %}>
+            <td>{{ item.record.issue_date|date:"Y-m-d" }}</td>
+            <td><a class="table-link mono" href="?invoice={{ item.record.id }}&amp;start={{ start }}&amp;end={{ end }}">{{ item.record.invoice_number }}</a></td>
+            <td>{{ item.record.counterparty.name }}</td>
+            <td class="numeric">{{ item.open_text }}</td>
+          </tr>
+        {% empty %}<tr><td class="empty-state" colspan="4">暂无待核发票</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel table-panel" aria-labelledby="money-title">
+    <div class="section-heading"><div><h2 id="money-title">实际资金</h2><span class="section-index">02</span></div></div>
+    {% if selected_invoice %}
+    <form method="post" action="{% url 'reconciliation:confirm' %}" data-reconciliation-form data-invoice-cents="{{ selected_open_cents }}">
+      {% csrf_token %}
+      <input type="hidden" name="invoice_id" value="{{ selected_invoice.id }}">
+      <input type="hidden" name="expected_invoice_open" value="{{ selected_open_input }}">
+      <div class="table-scroll">
+        <table class="data-table workbench-table">
+          <colgroup><col class="col-select"><col class="col-date"><col class="col-channel"><col><col class="col-money"></colgroup>
+          <thead><tr><th><span class="sr-only">选择</span></th><th>日期</th><th>渠道</th><th>账户</th><th class="numeric">可核金额</th></tr></thead>
+          <tbody>
+          {% for item in transactions %}
+            <tr data-transaction-row>
+              <td><input type="checkbox" data-transaction-select data-transaction-id="{{ item.record.id }}" data-available-cents="{{ item.open_cents }}" data-stale="{{ stale|yesno:'true,false' }}"{% if item.selected %} checked{% endif %} aria-label="选择 {{ item.record.occurred_at|date:'Y-m-d' }} 资金"></td>
+              <td>{{ item.record.occurred_at|date:"Y-m-d" }}</td>
+              <td>{{ item.record.get_channel_display }}</td>
+              <td class="mono">{{ item.record.account.masked_identifier }}</td>
+              <td class="numeric">{{ item.open_text }}</td>
+              <td class="sr-only">
+                <input type="hidden" name="transaction_id" value="{{ item.record.id }}" data-transaction-input{% if not item.selected %} disabled{% endif %}>
+                <input type="hidden" name="expected_transaction_open" value="{{ item.open_input }}" data-expected-transaction-input{% if not item.selected %} disabled{% endif %}>
+                <input type="hidden" name="amount" value="{{ item.allocation_input }}" data-allocation-input{% if not item.selected %} disabled{% endif %}>
+              </td>
+            </tr>
+          {% empty %}<tr><td class="empty-state" colspan="5">当前期间没有可核销资金</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <dl class="workbench-summary">
+        <div><dt>发票未核金额</dt><dd>{{ selected_open }}</dd></div>
+        <div><dt>所选资金</dt><dd data-selected-total>{{ money_total }}</dd></div>
+        <div><dt>本次核销</dt><dd data-allocated-total>{{ allocated_total }}</dd></div>
+        <div><dt>差额</dt><dd data-difference-total class="{% if difference_cents %}text-warning{% endif %}">{{ difference }}</dd></div>
+      </dl>
+      <div class="partial-confirm" data-partial-block{% if not difference_cents %} hidden{% endif %}>
+        <label><input type="checkbox" name="partial_confirm"{% if difference_cents %} required{% endif %}>本次为部分核销，发票核销后仍剩余 <strong data-difference-total>{{ difference }}</strong> 元；我已确认继续。</label>
+      </div>
+      <div class="workbench-actions">
+        <label class="note-field"><span>备注</span><input type="text" name="note" maxlength="1000" value="{{ form.data.note }}"></label>
+        <button class="button button-primary" type="submit" data-confirm-button disabled><i data-lucide="check" aria-hidden="true"></i>确认核销</button>
+      </div>
+    </form>
+    {% else %}<div class="empty-state workbench-empty">请选择左侧发票</div>{% endif %}
+  </section>
+</div>
+<script type="module" src="{% static 'js/reconciliation-workbench.js' %}"></script>
+{% endblock %}
