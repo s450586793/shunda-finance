@@ -28,8 +28,9 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - run: pip install ".[dev]"
-      - run: pytest --cov --cov-report=term-missing
+      - run: python -m venv .venv
+      - run: .venv/bin/pip install ".[dev]"
+      - run: .venv/bin/pytest --cov --cov-report=term-missing
       - run: npm ci
       - run: npm run test:js
       - run: npx playwright install --with-deps chromium

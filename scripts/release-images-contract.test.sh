@@ -190,8 +190,9 @@ test_commands = [
     if isinstance(step, dict) and isinstance(step.get("run"), str)
 ]
 required_test_commands = [
-    'pip install ".[dev]"',
-    "pytest --cov --cov-report=term-missing",
+    "python -m venv .venv",
+    '.venv/bin/pip install ".[dev]"',
+    ".venv/bin/pytest --cov --cov-report=term-missing",
     "npm ci",
     "npm run test:js",
     "npx playwright install --with-deps chromium",
@@ -202,6 +203,10 @@ required_test_commands = [
 for command in required_test_commands:
     if command not in test_commands:
         raise SystemExit(f"missing test command: {command}")
+
+for command in ('pip install ".[dev]"', "pytest --cov --cov-report=term-missing"):
+    if command in test_commands:
+        raise SystemExit(f"test command must use the project virtualenv: {command}")
 
 publish_if = publish_job.get("if")
 if not isinstance(publish_if, str):
